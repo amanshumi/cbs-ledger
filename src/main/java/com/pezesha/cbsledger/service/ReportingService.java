@@ -18,6 +18,7 @@ public class ReportingService {
 
     // 1.4.1 Account Balance
     public BigDecimal getBalance(String accountId) {
+        // validate accoun
         String sql = "SELECT balance FROM accounts WHERE id = ?";
         return jdbcTemplate.queryForObject(sql, BigDecimal.class, accountId);
     }

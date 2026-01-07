@@ -1,16 +1,16 @@
 package com.pezesha.cbsledger.api;
 
-import com.pezesha.cbsledger.domain.Account;
 import com.pezesha.cbsledger.domain.JournalEntry;
 import com.pezesha.cbsledger.dto.DTO;
 import com.pezesha.cbsledger.repository.AccountRepository;
 import com.pezesha.cbsledger.service.LedgerService;
 import com.pezesha.cbsledger.service.ReportingService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -31,8 +31,8 @@ public class LedgerController {
     // --- Account Management ---
 
     @PostMapping("/accounts")
-    public Account createAccount(@RequestBody DTO.CreateAccountRequest req) {
-        return ledgerService.createAccount(req);
+    public ResponseEntity<DTO.AccountResponse> createAccount(@RequestBody DTO.CreateAccountRequest req) {
+        return ResponseEntity.ok(ledgerService.createAccount(req));
     }
 
     @DeleteMapping("/accounts/{id}")
@@ -42,14 +42,14 @@ public class LedgerController {
     }
 
     @GetMapping("/accounts")
-    public List<Account> getAllAccounts() {
-        return accountRepository.findAll();
+    public ResponseEntity<Page<DTO.AccountResponse>> getAllAccounts(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ledgerService.getAccountResponses(PageRequest.of(page, size)));
     }
 
     // --- Transaction Processing ---
 
     @PostMapping("/transactions")
-    public ResponseEntity<JournalEntry> postTransaction(@RequestBody DTO.TransactionRequest request) {
+    public ResponseEntity<DTO.TransactionResponse> postTransaction(@RequestBody DTO.TransactionRequest request) {
         return ResponseEntity.ok(ledgerService.postTransaction(request));
     }
 

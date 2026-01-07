@@ -4,6 +4,8 @@ import com.pezesha.cbsledger.domain.*;
 import com.pezesha.cbsledger.dto.DTO;
 import com.pezesha.cbsledger.repository.AccountRepository;
 import com.pezesha.cbsledger.repository.JournalEntryRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,11 +28,12 @@ public class LedgerService {
         this.journalEntryRepository = journalEntryRepository;
     }
 
-    public Account getAccount(String accountId) {
-        return accountRepository.findById(accountId).orElseThrow();
+    public DTO.AccountResponse getAccountResponse(String accountId) {
+        Account account = accountRepository.findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        return mapAccountToResponse(account);
     }
 
-    public Account createAccount(DTO.CreateAccountRequest req) {
+    public DTO.AccountResponse createAccount(DTO.CreateAccountRequest req) {
         // check and validate
         if (accountRepository.existsById(req.id())) throw new IllegalArgumentException("Account ID already exists.");
 
@@ -38,15 +41,20 @@ public class LedgerService {
             req.id(), req.name(), req.type(), req.currency(), req.parentId(),
             BigDecimal.ZERO, Instant.now(), null
         );
-        return accountRepository.save(account);
+        return mapAccountToResponse(accountRepository.save(account));
+    }
+
+    // Get paginate
+    public Page<DTO.AccountResponse> getAccountResponses(Pageable pageable) {
+        return accountRepository.findAll(pageable).map(this::mapAccountToResponse);
     }
 
     @Transactional
-    public JournalEntry postTransaction(DTO.TransactionRequest request) {
+    public DTO.TransactionResponse postTransaction(DTO.TransactionRequest request) {
         // 1. Idempotency Check
         var existing = journalEntryRepository.findByIdempotencyKey(request.idempotencyKey());
         if (existing.isPresent()) {
-            return existing.get();
+            throw new IllegalArgumentException("Transaction already exists: " + request.idempotencyKey());
         }
 
         // 2. Validate Balance (Debits = Credits)
@@ -96,7 +104,7 @@ public class LedgerService {
                 lines
         );
 
-        return journalEntryRepository.save(journalEntry);
+        return mapTransactionToResponse(journalEntryRepository.save(journalEntry));
     }
 
     @Transactional
@@ -106,6 +114,12 @@ public class LedgerService {
         }
         accountRepository.deleteById(accountId);
     }
+
+    public DTO.TransactionResponse getTransaction(Long transactionId) {
+        JournalEntry entry = journalEntryRepository.findById(transactionId).orElseThrow(() -> new IllegalArgumentException("Transaction not found: " + transactionId));
+        return mapTransactionToResponse(entry);
+    }
+
 
     /**
      * Determines impact on balance based on Account Type (Part 1.2 Core Principles)
@@ -117,4 +131,32 @@ public class LedgerService {
             case LIABILITY, EQUITY, INCOME -> net.negate(); // Normal Credit Balance (Credit increases)
         };
     }
+
+    public DTO.AccountResponse mapAccountToResponse(Account account) {
+        return new DTO.AccountResponse(
+            account.id(),
+            account.name(),
+            account.accountType(),
+            account.currency(),
+            account.parentAccountId(),
+            account.balance()
+        );
+    }
+
+    private DTO.TransactionResponse mapTransactionToResponse(JournalEntry entry) {
+        return new DTO.TransactionResponse(
+                entry.id(),
+                entry.idempotencyKey(),
+                entry.description(),
+                entry.transactionDate(),
+                entry.postedAt(),
+                entry.status(),
+                entry.entries().stream().map(this::mapEntryLineToResponse).toList()
+        );
+    }
+
+    private DTO.EntryResponse mapEntryLineToResponse(EntryLine line) {
+        return new DTO.EntryResponse(line.accountId(), line.debit(), line.credit());
+    }
+
 }
