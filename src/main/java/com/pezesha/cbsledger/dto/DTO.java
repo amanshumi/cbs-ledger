@@ -1,8 +1,8 @@
 package com.pezesha.cbsledger.dto;
 
 import com.pezesha.cbsledger.domain.AccountType;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.*;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -52,4 +52,40 @@ public record DTO() {
             @NotNull BigDecimal debit,
             @NotNull BigDecimal credit
     ) {}
+
+    public record AccountBalanceRequest(
+            @NotNull String accountId,
+            @PastOrPresent Instant asOf) {}
+
+    public record TransactionHistoryRequest(
+            @NotNull String accountId,
+            Instant fromDate,
+            Instant toDate,
+            @Min(0) int page,
+            @Min(1) int size) {}
+
+    public record LoanDisbursementRequest(
+            @NotNull String loanAccountId,
+            @NotNull String cashAccountId,
+            @NotNull @Positive BigDecimal principalAmount,
+            @PositiveOrZero BigDecimal feeAmount,
+            @NotNull String idempotencyKey) {}
+
+    public record LoanRepaymentRequest(
+            @NotNull String cashAccountId,
+            @NotNull String loanAccountId,
+            @NotNull String interestIncomeAccountId,
+            @NotNull @Positive BigDecimal principalAmount,
+            @NotNull @PositiveOrZero BigDecimal interestAmount,
+            @NotNull String idempotencyKey) {}
+
+    public record LoanWriteOffRequest(
+            @NotNull String loanAccountId,
+            @NotNull String badDebtExpenseAccountId,
+            @NotNull @Positive BigDecimal amount,
+            @NotNull String idempotencyKey) {}
+
+    public record TransactionReversalRequest(
+            @NotNull Long transactionId,
+            @NotNull String reversalIdempotencyKey) {}
 }

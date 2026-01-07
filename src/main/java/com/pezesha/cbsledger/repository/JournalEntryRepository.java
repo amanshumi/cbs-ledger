@@ -1,12 +1,56 @@
 package com.pezesha.cbsledger.repository;
 
 import com.pezesha.cbsledger.domain.JournalEntry;
-import org.springframework.data.repository.ListCrudRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jdbc.repository.query.Query;
+import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.PagingAndSortingRepository;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface JournalEntryRepository extends ListCrudRepository<JournalEntry, Long> {
+public interface JournalEntryRepository extends
+        CrudRepository<JournalEntry, Long>,
+        PagingAndSortingRepository<JournalEntry, Long> {
+
     Optional<JournalEntry> findByIdempotencyKey(String idempotencyKey);
+
+    Page<JournalEntry> findAll(Pageable pageable);
+
+    // Simple query without pagination for use cases where you need all results
+    @Query("""
+                SELECT DISTINCT je.* FROM journal_entries je
+                JOIN entry_lines el ON je.id = el.journal_entry_id
+                WHERE el.account_id = :accountId
+                ORDER BY je.transaction_date DESC
+            """)
+    List<JournalEntry> findByAccountId(@Param("accountId") String accountId);
+
+    @Query("""
+                SELECT DISTINCT je.* FROM journal_entries je
+                JOIN entry_lines el ON je.id = el.journal_entry_id
+                WHERE el.account_id = :accountId
+                ORDER BY je.transaction_date DESC
+                LIMIT :#{#pageable.pageSize} OFFSET :#{#pageable.offset}
+            """)
+    List<JournalEntry> findTransactionsByAccountId(
+            @Param("accountId") String accountId,
+            Pageable pageable);
+
+    @Query("""
+                SELECT DISTINCT je.* FROM journal_entries je
+                JOIN entry_lines el ON je.id = el.journal_entry_id
+                WHERE el.account_id = :accountId
+                AND je.transaction_date BETWEEN :startDate AND :endDate
+                ORDER BY je.transaction_date DESC
+            """)
+    List<JournalEntry> findByAccountIdAndDateRange(
+            @Param("accountId") String accountId,
+            @Param("startDate") Instant startDate,
+            @Param("endDate") Instant endDate);
 }
