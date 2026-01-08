@@ -2,7 +2,6 @@ package com.pezesha.cbsledger.dto;
 
 import com.pezesha.cbsledger.domain.AccountType;
 import jakarta.validation.constraints.*;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -13,20 +12,17 @@ public record DTO() {
             @NotNull String name,
             @NotNull AccountType type,
             @NotNull String currency,
-            String parentId
-    ) {}
+            String parentId) {}
 
     public record TransactionRequest(
             @NotNull String idempotencyKey,
             String description,
-            @NotNull List<EntryRequest> entries
-    ) {}
+            @NotNull List<EntryRequest> entries) {}
 
     public record EntryRequest(
             @NotNull String accountId,
             @PositiveOrZero BigDecimal debit,
-            @PositiveOrZero BigDecimal credit
-    ) {}
+            @PositiveOrZero BigDecimal credit) {}
 
     public record AccountResponse(
             @NotNull String id,
@@ -34,8 +30,7 @@ public record DTO() {
             @NotNull AccountType type,
             @NotNull String currency,
             String parentId,
-            @NotNull BigDecimal balance
-    ) {}
+            @NotNull BigDecimal balance) {}
 
     public record TransactionResponse(
             @NotNull Long id,
@@ -44,14 +39,12 @@ public record DTO() {
             @NotNull Instant transactionDate,
             @NotNull Instant postedAt,
             @NotNull String status,
-            @NotNull List<EntryResponse> entries
-    ) {}
+            @NotNull List<EntryResponse> entries) {}
 
     public record EntryResponse(
             @NotNull String accountId,
             @NotNull BigDecimal debit,
-            @NotNull BigDecimal credit
-    ) {}
+            @NotNull BigDecimal credit) {}
 
     public record LoanDisbursementRequest(
             @NotNull String loanAccountId,
@@ -75,38 +68,21 @@ public record DTO() {
             @NotNull String idempotencyKey) {}
 
     public record TransactionReversalRequest(
-            @NotNull Long transactionId,
-            @NotNull String reversalIdempotencyKey) {}
+            @NotNull Long transactionId, @NotNull String reversalIdempotencyKey) {}
 
-    public record LoanAgingDTO(
-            String accountId,
-            String accountName,
-            BigDecimal outstandingAmount,
-            Instant dueDate
-    ) {}
+    public record LoanAgingDTO(String accountId, String accountName, BigDecimal outstandingAmount, Instant dueDate) {}
 
-    public record TrialBalanceDTO(
-            String accountType,
-            BigDecimal balance
-    ) {}
+    public record TrialBalanceDTO(String accountType, BigDecimal balance) {}
 
     public record AccountBalanceDTO(
             String accountId,
             String accountName,
             BigDecimal currentBalance,
             BigDecimal balanceAsOf,
-            Instant asOfDate
-    ) {}
+            Instant asOfDate) {}
 
     public record BalanceSheetCategoryDTO(
-            String category,
-            BigDecimal totalAmount,
-            java.util.List<AccountDetailDTO> accounts
-    ) {}
+            String category, BigDecimal totalAmount, java.util.List<AccountDetailDTO> accounts) {}
 
-    public record AccountDetailDTO(
-            String accountId,
-            String accountName,
-            BigDecimal balance
-    ) {}
+    public record AccountDetailDTO(String accountId, String accountName, BigDecimal balance) {}
 }

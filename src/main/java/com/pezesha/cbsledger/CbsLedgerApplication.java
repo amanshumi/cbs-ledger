@@ -8,8 +8,7 @@ import org.springframework.data.web.config.EnableSpringDataWebSupport;
 @EnableSpringDataWebSupport(pageSerializationMode = EnableSpringDataWebSupport.PageSerializationMode.VIA_DTO)
 public class CbsLedgerApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(CbsLedgerApplication.class, args);
-	}
-
+    public static void main(String[] args) {
+        SpringApplication.run(CbsLedgerApplication.class, args);
+    }
 }

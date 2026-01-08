@@ -5,17 +5,16 @@ import com.pezesha.cbsledger.domain.*;
 import com.pezesha.cbsledger.dto.DTO;
 import com.pezesha.cbsledger.repository.AccountRepository;
 import com.pezesha.cbsledger.repository.JournalEntryRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class LedgerService {
@@ -24,15 +23,14 @@ public class LedgerService {
     private final JournalEntryRepository journalEntryRepository;
     private final Map<String, Object> accountLocks = new ConcurrentHashMap<>();
 
-    public LedgerService(AccountRepository accountRepository,
-                         JournalEntryRepository journalEntryRepository) {
+    public LedgerService(AccountRepository accountRepository, JournalEntryRepository journalEntryRepository) {
         this.accountRepository = accountRepository;
         this.journalEntryRepository = journalEntryRepository;
     }
 
     public DTO.AccountResponse getAccount(String accountId) {
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new AccountNotFoundException(accountId));
+        Account account =
+                accountRepository.findById(accountId).orElseThrow(() -> new AccountNotFoundException(accountId));
         return mapAccountToResponse(account);
     }
 
@@ -45,7 +43,8 @@ public class LedgerService {
         }
 
         if (request.parentId() != null && !request.parentId().isEmpty()) {
-            Account parent = accountRepository.findById(request.parentId())
+            Account parent = accountRepository
+                    .findById(request.parentId())
                     .orElseThrow(() -> new AccountNotFoundException(request.parentId()));
 
             if (!isValidParentChildRelation(parent.accountType(), request.type())) {
@@ -61,21 +60,19 @@ public class LedgerService {
                 request.parentId(),
                 BigDecimal.ZERO,
                 Instant.now(),
-                null
-        );
+                null);
 
         return mapAccountToResponse(accountRepository.save(account));
     }
 
     public Page<DTO.AccountResponse> getAccounts(Pageable pageable) {
-        return accountRepository.findAll(pageable)
-                .map(this::mapAccountToResponse);
+        return accountRepository.findAll(pageable).map(this::mapAccountToResponse);
     }
 
     @Transactional
     public void deleteAccount(String accountId) {
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new AccountNotFoundException(accountId));
+        Account account =
+                accountRepository.findById(accountId).orElseThrow(() -> new AccountNotFoundException(accountId));
 
         List<Account> childAccounts = accountRepository.findByParentAccountId(accountId);
         if (!childAccounts.isEmpty()) {
@@ -84,8 +81,7 @@ public class LedgerService {
         }
 
         if (accountRepository.hasTransactions(accountId)) {
-            throw new AccountDeletionException(
-                    "Cannot delete account with transaction history.");
+            throw new AccountDeletionException("Cannot delete account with transaction history.");
         }
 
         accountRepository.deleteById(accountId);
@@ -93,8 +89,7 @@ public class LedgerService {
 
     @Transactional
     public DTO.TransactionResponse postTransaction(DTO.TransactionRequest request) {
-        Optional<JournalEntry> existing = journalEntryRepository
-                .findByIdempotencyKey(request.idempotencyKey());
+        Optional<JournalEntry> existing = journalEntryRepository.findByIdempotencyKey(request.idempotencyKey());
         if (existing.isPresent()) {
             throw new DuplicateTransactionKeyException("Duplicate idempotency key: " + request.idempotencyKey());
         }
@@ -115,16 +110,13 @@ public class LedgerService {
             Account account = accounts.get(entry.accountId());
             validateEntryAgainstAccount(entry, account);
 
-            BigDecimal balanceChange = calculateBalanceChange(
-                    account.accountType(), entry.debit(), entry.credit());
+            BigDecimal balanceChange = calculateBalanceChange(account.accountType(), entry.debit(), entry.credit());
 
-            Account updatedAccount = account.withBalance(
-                    account.balance().add(balanceChange));
+            Account updatedAccount = account.withBalance(account.balance().add(balanceChange));
 
             accountRepository.save(updatedAccount);
 
-            entryLines.add(new EntryLine(null, entry.accountId(),
-                    entry.debit(), entry.credit()));
+            entryLines.add(new EntryLine(null, entry.accountId(), entry.debit(), entry.credit()));
         }
 
         JournalEntry journalEntry = new JournalEntry(
@@ -134,17 +126,16 @@ public class LedgerService {
                 now, // transaction date
                 now, // posted at
                 "POSTED",
-                new HashSet<>(entryLines)
-        );
+                new HashSet<>(entryLines));
 
         JournalEntry savedEntry = journalEntryRepository.save(journalEntry);
         return mapTransactionToResponse(savedEntry);
     }
 
     @Transactional
-    public DTO.TransactionResponse reverseTransaction(Long transactionId,
-                                                      String reversalIdempotencyKey) {
-        JournalEntry original = journalEntryRepository.findById(transactionId)
+    public DTO.TransactionResponse reverseTransaction(Long transactionId, String reversalIdempotencyKey) {
+        JournalEntry original = journalEntryRepository
+                .findById(transactionId)
                 .orElseThrow(() -> new TransactionNotFoundException(transactionId));
 
         if ("REVERSED".equals(original.status())) {
@@ -152,32 +143,26 @@ public class LedgerService {
         }
 
         List<DTO.EntryRequest> reversalEntries = original.entries().stream()
-                .map(entry -> new DTO.EntryRequest(
-                        entry.accountId(),
-                        entry.credit(),
-                        entry.debit()
-                ))
+                .map(entry -> new DTO.EntryRequest(entry.accountId(), entry.credit(), entry.debit()))
                 .toList();
 
         DTO.TransactionRequest reversalRequest = new DTO.TransactionRequest(
-                reversalIdempotencyKey,
-                "Reversal of transaction #" + transactionId,
-                reversalEntries
-        );
+                reversalIdempotencyKey, "Reversal of transaction #" + transactionId, reversalEntries);
 
         DTO.TransactionResponse reversalResponse = postTransaction(reversalRequest);
         return reversalResponse;
     }
 
     public DTO.TransactionResponse getTransaction(Long transactionId) {
-        JournalEntry entry = journalEntryRepository.findById(transactionId)
+        JournalEntry entry = journalEntryRepository
+                .findById(transactionId)
                 .orElseThrow(() -> new TransactionNotFoundException(transactionId));
         return mapTransactionToResponse(entry);
     }
 
     public BigDecimal getAccountBalance(String accountId) {
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new AccountNotFoundException(accountId));
+        Account account =
+                accountRepository.findById(accountId).orElseThrow(() -> new AccountNotFoundException(accountId));
         return account.balance();
     }
 
@@ -207,9 +192,7 @@ public class LedgerService {
         }
     }
 
-    private void validateEntryAgainstAccount(DTO.EntryRequest entry, Account account) {
-
-    }
+    private void validateEntryAgainstAccount(DTO.EntryRequest entry, Account account) {}
 
     private void validateTransaction(DTO.TransactionRequest request) {
         if (request.entries() == null || request.entries().isEmpty()) {
@@ -217,23 +200,19 @@ public class LedgerService {
         }
 
         for (DTO.EntryRequest entry : request.entries()) {
-            if (entry.debit().compareTo(BigDecimal.ZERO) < 0 ||
-                    entry.credit().compareTo(BigDecimal.ZERO) < 0) {
+            if (entry.debit().compareTo(BigDecimal.ZERO) < 0 || entry.credit().compareTo(BigDecimal.ZERO) < 0) {
                 throw new ValidationException("Debit and credit amounts must be non-negative");
             }
 
-            if (entry.debit().compareTo(BigDecimal.ZERO) > 0 &&
-                    entry.credit().compareTo(BigDecimal.ZERO) > 0) {
+            if (entry.debit().compareTo(BigDecimal.ZERO) > 0 && entry.credit().compareTo(BigDecimal.ZERO) > 0) {
                 throw new ValidationException("Entry cannot have both debit and credit amounts");
             }
         }
 
-        BigDecimal totalDebit = request.entries().stream()
-                .map(DTO.EntryRequest::debit)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal totalCredit = request.entries().stream()
-                .map(DTO.EntryRequest::credit)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalDebit =
+                request.entries().stream().map(DTO.EntryRequest::debit).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalCredit =
+                request.entries().stream().map(DTO.EntryRequest::credit).reduce(BigDecimal.ZERO, BigDecimal::add);
 
         if (totalDebit.compareTo(totalCredit) != 0) {
             throw new UnbalancedTransactionException(totalDebit, totalCredit);
@@ -241,8 +220,7 @@ public class LedgerService {
     }
 
     private Map<String, Account> getAndLockAccounts(List<String> accountIds) {
-        Map<String, Account> accounts = accountRepository.findAllById(accountIds)
-                .stream()
+        Map<String, Account> accounts = accountRepository.findAllById(accountIds).stream()
                 .collect(Collectors.toMap(Account::id, Function.identity()));
 
         if (accounts.size() != accountIds.size()) {
@@ -253,8 +231,8 @@ public class LedgerService {
         }
 
         String firstCurrency = accounts.values().iterator().next().currency();
-        boolean allSameCurrency = accounts.values().stream()
-                .allMatch(a -> a.currency().equals(firstCurrency));
+        boolean allSameCurrency =
+                accounts.values().stream().allMatch(a -> a.currency().equals(firstCurrency));
 
         if (!allSameCurrency) {
             throw new MultiCurrencyTransactionException(
@@ -285,8 +263,7 @@ public class LedgerService {
                 account.accountType(),
                 account.currency(),
                 account.parentAccountId(),
-                account.balance()
-        );
+                account.balance());
     }
 
     public DTO.TransactionResponse mapTransactionToResponse(JournalEntry entry) {
@@ -297,17 +274,10 @@ public class LedgerService {
                 entry.transactionDate(),
                 entry.postedAt(),
                 entry.status(),
-                entry.entries().stream()
-                        .map(this::mapEntryLineToResponse)
-                        .toList()
-        );
+                entry.entries().stream().map(this::mapEntryLineToResponse).toList());
     }
 
     public DTO.EntryResponse mapEntryLineToResponse(EntryLine line) {
-        return new DTO.EntryResponse(
-                line.accountId(),
-                line.debit(),
-                line.credit()
-        );
+        return new DTO.EntryResponse(line.accountId(), line.debit(), line.credit());
     }
 }

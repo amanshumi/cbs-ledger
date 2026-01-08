@@ -5,12 +5,6 @@ import com.pezesha.cbsledger.domain.JournalEntry;
 import com.pezesha.cbsledger.dto.DTO;
 import com.pezesha.cbsledger.repository.AccountRepository;
 import com.pezesha.cbsledger.repository.ReportingDao;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -18,6 +12,11 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
@@ -27,9 +26,8 @@ public class ReportingService {
     private final AccountRepository accountRepository;
     private final LedgerService ledgerService;
 
-    public ReportingService(ReportingDao reportingDao,
-                            AccountRepository accountRepository,
-                            LedgerService ledgerService) {
+    public ReportingService(
+            ReportingDao reportingDao, AccountRepository accountRepository, LedgerService ledgerService) {
         this.reportingDao = reportingDao;
         this.accountRepository = accountRepository;
         this.ledgerService = ledgerService;
@@ -41,7 +39,8 @@ public class ReportingService {
                 : accountRepository.getBalanceAsOf(accountId, asOf);
     }
 
-    public Page<DTO.TransactionResponse> getTransactionHistory(String accountId, Instant start, Instant end, Pageable pageable) {
+    public Page<DTO.TransactionResponse> getTransactionHistory(
+            String accountId, Instant start, Instant end, Pageable pageable) {
         Long total = reportingDao.countTransactions(accountId, start, end);
         if (total == null || total == 0) return Page.empty(pageable);
 
@@ -50,9 +49,8 @@ public class ReportingService {
 
         log.info("Transactions: {}", entries);
 
-        List<DTO.TransactionResponse> content = entries.stream()
-                .map(ledgerService::mapTransactionToResponse)
-                .collect(Collectors.toList());
+        List<DTO.TransactionResponse> content =
+                entries.stream().map(ledgerService::mapTransactionToResponse).collect(Collectors.toList());
 
         return new PageImpl<>(content, pageable, total);
     }
@@ -78,8 +76,7 @@ public class ReportingService {
                 "accountBalances", balancesByType,
                 "totalDebits", totalDebits,
                 "totalCredits", totalCredits,
-                "isBalanced", totalDebits.compareTo(totalCredits) == 0
-        );
+                "isBalanced", totalDebits.compareTo(totalCredits) == 0);
     }
 
     public Map<String, Object> getBalanceSheet() {
@@ -98,8 +95,7 @@ public class ReportingService {
             String type = (String) account.get("account_type");
             BigDecimal balance = (BigDecimal) account.get("balance");
 
-            BigDecimal adjustedBalance = "ASSET".equals(type) ?
-                    balance : balance.negate();
+            BigDecimal adjustedBalance = "ASSET".equals(type) ? balance : balance.negate();
 
             Map<String, Object> accountDetail = new HashMap<>(account);
             accountDetail.put("balance", adjustedBalance);
@@ -143,12 +139,7 @@ public class ReportingService {
     private List<Map<String, Object>> categorizeLoansByAging(List<DTO.LoanAgingDTO> loanData) {
         // Initialize buckets
         Map<String, Map<String, Object>> buckets = new LinkedHashMap<>();
-        String[] bucketNames = {
-                "Current (0-29 days)",
-                "30-59 days",
-                "60-89 days",
-                "90+ days"
-        };
+        String[] bucketNames = {"Current (0-29 days)", "30-59 days", "60-89 days", "90+ days"};
 
         for (String bucket : bucketNames) {
             Map<String, Object> bucketData = new HashMap<>();
