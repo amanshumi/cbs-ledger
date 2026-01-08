@@ -9,7 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.*;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -147,12 +147,17 @@ public class LedgerController {
     // ==================== Reporting APIs ====================
 
     @GetMapping("/reports/accounts/{accountId}/balance")
-    @Operation(summary = "Get account balance", description = "Retrieves current or historical balance for an account")
     public ResponseEntity<BigDecimal> getAccountBalance(
             @PathVariable String accountId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant asOf) {
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate asOfDate) {
 
-        BigDecimal balance = reportingService.getAccountBalance(accountId, asOf);
+        Instant asOfInstant = asOfDate.atTime(LocalTime.MAX)
+                .atZone(ZoneId.systemDefault())
+                .toInstant();
+
+        BigDecimal balance = reportingService.getAccountBalance(accountId, asOfInstant);
         return ResponseEntity.ok(balance);
     }
 
