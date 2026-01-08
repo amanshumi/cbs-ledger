@@ -39,4 +39,4 @@ A production-grade double-entry accounting system for fintech loan operations.
    * Password: password
 
 6. **Explore API endpoints:**
-   * Swagger UI: http://localhost:8080/swagger-ui.html 
+   * Swagger UI: http://localhost:8080/swagger-ui
