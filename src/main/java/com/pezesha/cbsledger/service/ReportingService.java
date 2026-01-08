@@ -133,6 +133,7 @@ public class ReportingService {
 
     public List<Map<String, Object>> getLoanAgingReport() {
         List<Map<String, Object>> loans = reportingDao.getRawLoanAgingData();
+        log.info("Raw Loan Aging Data: {}", loans);
 
         Map<String, Map<String, Object>> buckets = new LinkedHashMap<>();
         String[] bucketNames = {"Current (0-29 days)", "30-59 days", "60-89 days", "90+ days"};
@@ -149,22 +150,18 @@ public class ReportingService {
         LocalDate today = LocalDate.now();
 
         for (Map<String, Object> loan : loans) {
-            Instant dueDateInstant = (Instant) loan.get("due_date");
-            LocalDate dueDate = dueDateInstant.atZone(ZoneId.systemDefault()).toLocalDate();
-            long daysOverdue = dueDate.until(today).getDays();
+            Instant dueDateInstant = convertToInstant(loan.get("due_date"));
 
-            String bucket;
-            if (daysOverdue <= 0) {
-                bucket = "Current (0-29 days)";
-            } else if (daysOverdue <= 29) {
-                bucket = "Current (0-29 days)";
-            } else if (daysOverdue <= 59) {
-                bucket = "30-59 days";
-            } else if (daysOverdue <= 89) {
-                bucket = "60-89 days";
-            } else {
-                bucket = "90+ days";
+            if (dueDateInstant == null) {
+                log.warn("Loan {} has no due date, skipping aging categorization", loan.get("account_id"));
+                continue;
             }
+
+            LocalDate dueDate = dueDateInstant.atZone(ZoneId.systemDefault()).toLocalDate();
+
+            long daysOverdue = java.time.temporal.ChronoUnit.DAYS.between(dueDate, today);
+
+            String bucket = determineBucket(daysOverdue);
 
             Map<String, Object> bucketData = buckets.get(bucket);
             bucketData.put("loan_count", (Integer) bucketData.get("loan_count") + 1);
@@ -179,5 +176,21 @@ public class ReportingService {
         }
 
         return new ArrayList<>(buckets.values());
+    }
+
+    private Instant convertToInstant(Object dateObj) {
+        if (dateObj == null) return null;
+        if (dateObj instanceof Instant instant) return instant;
+        if (dateObj instanceof java.sql.Timestamp ts) return ts.toInstant();
+        if (dateObj instanceof java.util.Date d) return d.toInstant();
+        return null;
+    }
+
+    private String determineBucket(long daysOverdue) {
+        if (daysOverdue < 1) return "Current (0-29 days)";
+        if (daysOverdue <= 29) return "Current (0-29 days)";
+        if (daysOverdue <= 59) return "30-59 days";
+        if (daysOverdue <= 89) return "60-89 days";
+        return "90+ days";
     }
 }

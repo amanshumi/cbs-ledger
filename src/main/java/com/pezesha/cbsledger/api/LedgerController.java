@@ -100,7 +100,6 @@ public class LedgerController {
             description = "Retrieves a specific transaction with all entry lines")
     public ResponseEntity<DTO.TransactionResponse> getTransaction(
             @PathVariable Long transactionId) {
-        // Note: You'll need to add this method to LedgerService
         return ResponseEntity.ok(ledgerService.getTransaction(transactionId));
     }
 
@@ -219,7 +218,6 @@ public class LedgerController {
     @Operation(summary = "Get loan aging report",
             description = "Categorizes loans by days overdue")
     public ResponseEntity<List<Map<String, Object>>> getLoanAgingReport() {
-        // Changed return type to match enhanced ReportingService
         return ResponseEntity.ok(reportingService.getLoanAgingReport());
     }
 
