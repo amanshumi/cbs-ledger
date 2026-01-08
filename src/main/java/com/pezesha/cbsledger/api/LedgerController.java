@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -22,20 +23,13 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/ledger")
+@RequiredArgsConstructor
 @Tag(name = "Core Banking Ledger", description = "Double-entry accounting system APIs for loan management")
 public class LedgerController {
 
     private final LedgerService ledgerService;
     private final LoanService loanService;
     private final ReportingService reportingService;
-
-    public LedgerController(LedgerService ledgerService,
-                            LoanService loanService,
-                            ReportingService reportingService) {
-        this.ledgerService = ledgerService;
-        this.loanService = loanService;
-        this.reportingService = reportingService;
-    }
 
     // ==================== Account Management ====================
 

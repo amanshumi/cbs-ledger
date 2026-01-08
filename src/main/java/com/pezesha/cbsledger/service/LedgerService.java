@@ -61,7 +61,7 @@ public class LedgerService {
                 request.parentId(),
                 BigDecimal.ZERO,
                 Instant.now(),
-                0
+                null
         );
 
         return mapAccountToResponse(accountRepository.save(account));
@@ -96,7 +96,7 @@ public class LedgerService {
         Optional<JournalEntry> existing = journalEntryRepository
                 .findByIdempotencyKey(request.idempotencyKey());
         if (existing.isPresent()) {
-            return mapTransactionToResponse(existing.get());
+            throw new DuplicateTransactionKeyException("Duplicate idempotency key: " + request.idempotencyKey());
         }
 
         validateTransaction(request);
