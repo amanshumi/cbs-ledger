@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -132,50 +133,86 @@ public class ReportingService {
     }
 
     public List<Map<String, Object>> getLoanAgingReport() {
-        List<Map<String, Object>> loans = reportingDao.getRawLoanAgingData();
-        log.info("Raw Loan Aging Data: {}", loans);
+        // 1. Fetch data from repository (DAO layer)
+        List<DTO.LoanAgingDTO> loanData = reportingDao.findLoanAgingData();
 
+        // 2. Business logic: Categorize loans into buckets
+        return categorizeLoansByAging(loanData);
+    }
+
+    private List<Map<String, Object>> categorizeLoansByAging(List<DTO.LoanAgingDTO> loanData) {
+        // Initialize buckets
         Map<String, Map<String, Object>> buckets = new LinkedHashMap<>();
-        String[] bucketNames = {"Current (0-29 days)", "30-59 days", "60-89 days", "90+ days"};
+        String[] bucketNames = {
+                "Current (0-29 days)",
+                "30-59 days",
+                "60-89 days",
+                "90+ days"
+        };
 
         for (String bucket : bucketNames) {
             Map<String, Object> bucketData = new HashMap<>();
             bucketData.put("bucket", bucket);
             bucketData.put("loan_count", 0);
             bucketData.put("total_outstanding", BigDecimal.ZERO);
-            bucketData.put("loans", new ArrayList<>());
+            bucketData.put("loans", new ArrayList<Map<String, Object>>());
             buckets.put(bucket, bucketData);
         }
 
         LocalDate today = LocalDate.now();
 
-        for (Map<String, Object> loan : loans) {
-            Instant dueDateInstant = convertToInstant(loan.get("due_date"));
+        // Business logic: Determine bucket for each loan
+        for (DTO.LoanAgingDTO loan : loanData) {
+            LocalDate dueDate = loan.dueDate().atZone(ZoneId.systemDefault()).toLocalDate();
+            long daysOverdue = ChronoUnit.DAYS.between(dueDate, today);
 
-            if (dueDateInstant == null) {
-                log.warn("Loan {} has no due date, skipping aging categorization", loan.get("account_id"));
-                continue;
-            }
+            String bucket = determineAgingBucket(daysOverdue);
 
-            LocalDate dueDate = dueDateInstant.atZone(ZoneId.systemDefault()).toLocalDate();
-
-            long daysOverdue = java.time.temporal.ChronoUnit.DAYS.between(dueDate, today);
-
-            String bucket = determineBucket(daysOverdue);
-
+            // Update bucket data
             Map<String, Object> bucketData = buckets.get(bucket);
-            bucketData.put("loan_count", (Integer) bucketData.get("loan_count") + 1);
-
-            BigDecimal outstanding = (BigDecimal) loan.get("outstanding_amount");
-            bucketData.put("total_outstanding",
-                    ((BigDecimal) bucketData.get("total_outstanding")).add(outstanding));
-
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> loansInBucket = (List<Map<String, Object>>) bucketData.get("loans");
-            loansInBucket.add(loan);
+            updateBucketWithLoan(bucketData, loan);
         }
 
-        return new ArrayList<>(buckets.values());
+        // Filter out empty buckets
+        return buckets.values().stream()
+                .filter(bucket -> (Integer) bucket.get("loan_count") > 0)
+                .collect(Collectors.toList());
+    }
+
+    private String determineAgingBucket(long daysOverdue) {
+        if (daysOverdue <= 0) {
+            return "Current (0-29 days)";
+        } else if (daysOverdue <= 29) {
+            return "Current (0-29 days)";
+        } else if (daysOverdue <= 59) {
+            return "30-59 days";
+        } else if (daysOverdue <= 89) {
+            return "60-89 days";
+        } else {
+            return "90+ days";
+        }
+    }
+
+    private void updateBucketWithLoan(Map<String, Object> bucketData, DTO.LoanAgingDTO loan) {
+        // Update count
+        int currentCount = (Integer) bucketData.get("loan_count");
+        bucketData.put("loan_count", currentCount + 1);
+
+        // Update total outstanding
+        BigDecimal currentTotal = (BigDecimal) bucketData.get("total_outstanding");
+        bucketData.put("total_outstanding", currentTotal.add(loan.outstandingAmount()));
+
+        // Add loan details
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> loansInBucket = (List<Map<String, Object>>) bucketData.get("loans");
+
+        Map<String, Object> loanDetail = new HashMap<>();
+        loanDetail.put("account_id", loan.accountId());
+        loanDetail.put("account_name", loan.accountName());
+        loanDetail.put("outstanding_amount", loan.outstandingAmount());
+        loanDetail.put("due_date", loan.dueDate());
+
+        loansInBucket.add(loanDetail);
     }
 
     private Instant convertToInstant(Object dateObj) {

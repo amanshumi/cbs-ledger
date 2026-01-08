@@ -34,9 +34,3 @@ INSERT INTO "accounts" ("id", "name", "account_type", "currency", "parent_accoun
 ('INC-INTEREST', 'Interest Income', 'INCOME', 'KES', 'INCOME', 0, 0),
 ('INC-FEES', 'Fee Income', 'INCOME', 'KES', 'INCOME', 0, 0),
 ('EXP-BAD-DEBT', 'Bad Debt Expense', 'EXPENSE', 'KES', 'EXPENSES', 0, 0);
-
--- 4. LOAN METADATA (For Aging Reports)
-INSERT INTO "loans" ("loan_id", "account_id", "principal_amount", "disbursed_at", "due_date", "status") VALUES
-('LN-001', 'LOANS-REC-KES', 5000.00, DATEADD('DAY', -5, CURRENT_DATE), DATEADD('DAY', 25, CURRENT_DATE), 'ACTIVE'),
-('LN-002', 'LOANS-REC-KES', 10000.00, DATEADD('DAY', -60, CURRENT_DATE), DATEADD('DAY', -45, CURRENT_DATE), 'ACTIVE'), -- 30-59 Days Late
-('LN-003', 'LOANS-REC-KES', 2000.00, DATEADD('DAY', -120, CURRENT_DATE), DATEADD('DAY', -100, CURRENT_DATE), 'ACTIVE'); -- 90+ Days Late

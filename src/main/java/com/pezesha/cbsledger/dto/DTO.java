@@ -53,17 +53,6 @@ public record DTO() {
             @NotNull BigDecimal credit
     ) {}
 
-    public record AccountBalanceRequest(
-            @NotNull String accountId,
-            @PastOrPresent Instant asOf) {}
-
-    public record TransactionHistoryRequest(
-            @NotNull String accountId,
-            Instant fromDate,
-            Instant toDate,
-            @Min(0) int page,
-            @Min(1) int size) {}
-
     public record LoanDisbursementRequest(
             @NotNull String loanAccountId,
             @NotNull String cashAccountId,
@@ -88,4 +77,36 @@ public record DTO() {
     public record TransactionReversalRequest(
             @NotNull Long transactionId,
             @NotNull String reversalIdempotencyKey) {}
+
+    public record LoanAgingDTO(
+            String accountId,
+            String accountName,
+            BigDecimal outstandingAmount,
+            Instant dueDate
+    ) {}
+
+    public record TrialBalanceDTO(
+            String accountType,
+            BigDecimal balance
+    ) {}
+
+    public record AccountBalanceDTO(
+            String accountId,
+            String accountName,
+            BigDecimal currentBalance,
+            BigDecimal balanceAsOf,
+            Instant asOfDate
+    ) {}
+
+    public record BalanceSheetCategoryDTO(
+            String category,
+            BigDecimal totalAmount,
+            java.util.List<AccountDetailDTO> accounts
+    ) {}
+
+    public record AccountDetailDTO(
+            String accountId,
+            String accountName,
+            BigDecimal balance
+    ) {}
 }

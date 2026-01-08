@@ -1,9 +1,13 @@
 package com.pezesha.cbsledger.repository;
 
 import com.pezesha.cbsledger.domain.JournalEntry;
+import com.pezesha.cbsledger.dto.DTO;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.*;
 
@@ -80,13 +84,44 @@ public class ReportingDao {
         """);
     }
 
-    public List<Map<String, Object>> getRawLoanAgingData() {
-        return jdbcTemplate.queryForList("""
-            SELECT a.id as account_id, a.name as account_name, a.balance as outstanding_amount,
-                   COALESCE(l.due_date, DATEADD('DAY', 30, a.created_at)) as due_date
-            FROM accounts a LEFT JOIN loans l ON a.id = l.account_id
-            WHERE a.account_type = 'ASSET' AND (LOWER(a.name) LIKE '%loan%' OR LOWER(a.name) LIKE '%receivable%')
+    public List<DTO.LoanAgingDTO> findLoanAgingData() {
+        String sql = """
+            SELECT DISTINCT
+                a.id as account_id,
+                a.name as account_name,
+                a.balance as outstanding_amount,
+                COALESCE(l.due_date, DATEADD('DAY', 30, a.created_at)) as due_date
+            FROM accounts a
+            LEFT JOIN loans l ON a.id = l.account_id
+            WHERE a.account_type = 'ASSET' 
+            AND (LOWER(a.name) LIKE '%loan%' OR LOWER(a.name) LIKE '%receivable%')
             AND a.balance > 0
-        """);
+            ORDER BY due_date
+            """;
+
+        return jdbcTemplate.query(sql, new LoanAgingRowMapper());
+    }
+
+    // Row Mappers
+    private static class LoanAgingRowMapper implements RowMapper<DTO.LoanAgingDTO> {
+        @Override
+        public DTO.LoanAgingDTO mapRow(ResultSet rs, int rowNum) throws SQLException {
+            return new DTO.LoanAgingDTO(
+                    rs.getString("account_id"),
+                    rs.getString("account_name"),
+                    rs.getBigDecimal("outstanding_amount"),
+                    rs.getTimestamp("due_date").toInstant()
+            );
+        }
+    }
+
+    private static class TrialBalanceRowMapper implements RowMapper<DTO.TrialBalanceDTO> {
+        @Override
+        public DTO.TrialBalanceDTO mapRow(ResultSet rs, int rowNum) throws SQLException {
+            return new DTO.TrialBalanceDTO(
+                    rs.getString("account_type"),
+                    rs.getBigDecimal("balance")
+            );
+        }
     }
 }
