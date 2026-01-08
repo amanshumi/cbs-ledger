@@ -468,6 +468,60 @@
 					"response": []
 				},
 				{
+					"name": "Get Account Balance (Cash - Historical)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/reports/accounts/CASH-MPESA-KES/balance?asOfDate=2025-10-10",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"reports",
+								"accounts",
+								"CASH-MPESA-KES",
+								"balance"
+							],
+							"query": [
+								{
+									"key": "asOfDate",
+									"value": "2025-10-10"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Validate Balance",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/validate/CASH-MPESA-KES",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"validate",
+								"CASH-MPESA-KES"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Trial Balance",
 					"request": {
 						"method": "GET",
@@ -545,6 +599,36 @@
 								{
 									"key": "size",
 									"value": "222"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Balance Sheet",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/reports/balance-sheet",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"reports",
+								"balance-sheet"
+							],
+							"query": [
+								{
+									"key": "accountId",
+									"value": "CASH-MPESA-KES",
+									"disabled": true
 								}
 							]
 						}
