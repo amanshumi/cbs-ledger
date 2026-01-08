@@ -192,18 +192,6 @@ public class LedgerController {
         return ResponseEntity.ok(reportingService.getLoanAgingReport());
     }
 
-    // ==================== Health & Validation ====================
-
-    @GetMapping("/health")
-    @Operation(summary = "Health check", description = "Verifies ledger system health and data integrity")
-    public ResponseEntity<Map<String, Object>> healthCheck() {
-        Map<String, Object> health = Map.of(
-                "status", "UP",
-                "timestamp", Instant.now(),
-                "ledgerIntegrity", reportingService.getTrialBalance().get("isBalanced"));
-        return ResponseEntity.ok(health);
-    }
-
     @GetMapping("/validate/{accountId}")
     @Operation(
             summary = "Validate account balance",

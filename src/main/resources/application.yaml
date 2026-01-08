@@ -8,6 +8,13 @@ spring:
     username: sa
     password: password
 
+  health:
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health
+
 # configure swagger
 springdoc:
   api-docs:
