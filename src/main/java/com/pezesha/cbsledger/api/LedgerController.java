@@ -114,14 +114,11 @@ public class LedgerController {
     @Operation(summary = "Disburse a loan",
             description = "Executes loan disbursement with optional origination fee")
     public ResponseEntity<DTO.TransactionResponse> disburseLoan(
-            @RequestParam String loanAccountId,
-            @RequestParam String cashAccountId,
-            @RequestParam BigDecimal principalAmount,
-            @RequestParam(required = false, defaultValue = "0") BigDecimal feeAmount,
-            @RequestParam String idempotencyKey) {
+            @Valid @RequestBody DTO.LoanDisbursementRequest request) {
 
-        DTO.TransactionResponse response = loanService.disburseLoan(
-                loanAccountId, cashAccountId, principalAmount, feeAmount, idempotencyKey);
+        DTO.TransactionResponse response = loanService.disburseLoan(request.loanAccountId(),
+                request.cashAccountId(), request.principalAmount(), request.feeAmount(),
+                request.idempotencyKey());
         return ResponseEntity.ok(response);
     }
 
@@ -129,16 +126,16 @@ public class LedgerController {
     @Operation(summary = "Record loan repayment",
             description = "Records principal and interest repayment")
     public ResponseEntity<DTO.TransactionResponse> repayLoan(
-            @RequestParam String cashAccountId,
-            @RequestParam String loanAccountId,
-            @RequestParam String interestIncomeAccountId,
-            @RequestParam BigDecimal principalAmount,
-            @RequestParam BigDecimal interestAmount,
-            @RequestParam String idempotencyKey) {
+            @Valid @RequestBody DTO.LoanRepaymentRequest request) {
 
         DTO.TransactionResponse response = loanService.recordRepayment(
-                cashAccountId, loanAccountId, interestIncomeAccountId,
-                principalAmount, interestAmount, idempotencyKey);
+                request.cashAccountId(),
+                request.loanAccountId(),
+                request.interestIncomeAccountId(),
+                request.principalAmount(),
+                request.interestAmount(),
+                request.idempotencyKey());
+
         return ResponseEntity.ok(response);
     }
 
@@ -146,13 +143,14 @@ public class LedgerController {
     @Operation(summary = "Write off a loan",
             description = "Records bad debt expense for defaulted loans")
     public ResponseEntity<DTO.TransactionResponse> writeOffLoan(
-            @RequestParam String loanAccountId,
-            @RequestParam String badDebtExpenseAccountId,
-            @RequestParam BigDecimal amount,
-            @RequestParam String idempotencyKey) {
+            @Valid @RequestBody DTO.LoanWriteOffRequest request) {
 
         DTO.TransactionResponse response = loanService.writeOffLoan(
-                loanAccountId, badDebtExpenseAccountId, amount, idempotencyKey);
+                request.loanAccountId(),
+                request.badDebtExpenseAccountId(),
+                request.amount(),
+                request.idempotencyKey());
+
         return ResponseEntity.ok(response);
     }
 
