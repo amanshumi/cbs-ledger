@@ -1,0 +1,557 @@
+{
+	"info": {
+		"_postman_id": "aaac2299-c19c-4ede-868d-455b03579fcb",
+		"name": "Ledger Service (LMS)",
+		"description": "Collection for testing the Double-Entry Ledger Service.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "19338903"
+	},
+	"item": [
+		{
+			"name": "1. Accounts",
+			"item": [
+				{
+					"name": "Get All Accounts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/accounts?page=0&size=101",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"accounts"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "101"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Account",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"id\": \"LOANS-REC-KES\",\n    \"name\": \"Loans Receivable (KES)\",\n    \"type\": \"ASSET\",\n    \"currency\": \"KES\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/accounts",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"accounts"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Account By Id",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/accounts/CASH-MPESA-KES",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"accounts",
+								"CASH-MPESA-KES"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Account (Bad Debt Acc)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"id\": \"BAD-DEBT-EXP-USD\",\n    \"name\": \"Bad Debt Expense - USD\",\n    \"type\": \"EXPENSE\",\n    \"currency\": \"USD\",\n    \"parentId\": null\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/accounts",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"accounts"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "2. Transactions",
+			"item": [
+				{
+					"name": "Transaction Postings (Loan Example)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"idempotencyKey\": \"{{$randomUUID}}\",\n    \"description\": \"Disbursement for Loan #101\",\n    \"entries\": [\n        {\n            \"accountId\": \"LOANS-REC-KES\",\n            \"debit\": 5000,\n            \"credit\": 0\n        },\n        {\n            \"accountId\": \"CASH-MPESA-KES\",\n            \"debit\": 0,\n            \"credit\": 5000\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/transactions",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"transactions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Transaction By Id",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/transactions/1",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"transactions",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Reverse Transaction",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/transactions/1/reverse?reversalIdempotencyKey={{$randomUUID}}",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"transactions",
+								"1",
+								"reverse"
+							],
+							"query": [
+								{
+									"key": "reversalIdempotencyKey",
+									"value": "{{$randomUUID}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Transaction Posting (Loan Repayment Example)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"idempotencyKey\": \"{{$randomUUID}}\",\n    \"description\": \"Repayment (Principal + Interest)\",\n    \"entries\": [\n        {\n            \"accountId\": \"CASH-MPESA-KES\",\n            \"debit\": 1200,\n            \"credit\": 0\n        },\n        {\n            \"accountId\": \"LOANS-REC-KES\",\n            \"debit\": 0,\n            \"credit\": 1000\n        },\n        {\n            \"accountId\": \"INC-INTEREST\",\n            \"debit\": 0,\n            \"credit\": 200\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/transactions",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"transactions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Idempotency Check (Duplicate Request)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"idempotencyKey\": \"disburse-loan-101\",\n    \"description\": \"Disbursement for Loan #101\",\n    \"entries\": [\n        {\n            \"accountId\": \"LOANS-RECEIVABLE\",\n            \"debit\": 5000,\n            \"credit\": 0\n        },\n        {\n            \"accountId\": \"CASH-MPESA\",\n            \"debit\": 0,\n            \"credit\": 5000\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/ledger/transactions",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"ledger",
+								"transactions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Loan Disbursement",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"loanAccountId\": \"LOANS-REC-KES\",\n    \"cashAccountId\": \"CASH-MPESA-KES\",\n    \"principalAmount\": 10000,\n    \"feeAmount\": 500,\n    \"idempotencyKey\": \"{{$randomUUID}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/loans/disburse",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"loans",
+								"disburse"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Loan Repayment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"cashAccountId\": \"CASH-MPESA-KES\",\n    \"loanAccountId\": \"LOANS-REC-KES\",\n    \"interestIncomeAccountId\": \"INC-INTEREST\",\n    \"principalAmount\": 1000,\n    \"interestAmount\": 200,\n    \"idempotencyKey\": \"{{$randomUUID}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/loans/repay",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"loans",
+								"repay"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Loan Write-Off",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"loanAccountId\": \"LOANS-REC-KES\",\n    \"badDebtExpenseAccountId\": \"EXP-BAD-DEBT\",\n    \"amount\": 5000,\n    \"idempotencyKey\": \"{{$randomUUID}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/loans/write-off",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"loans",
+								"write-off"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "3. Reports",
+			"item": [
+				{
+					"name": "Get Account Balance (Loans Receivable)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/reports/accounts/LOANS-REC-KES/balance",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"reports",
+								"accounts",
+								"LOANS-REC-KES",
+								"balance"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Account Balance (Cash)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/reports/accounts/CASH-MPESA-KES/balance",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"reports",
+								"accounts",
+								"CASH-MPESA-KES",
+								"balance"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Trial Balance",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/reports/trial-balance",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"reports",
+								"trial-balance"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Loan Aging Report",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/reports/loan-aging",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"reports",
+								"loan-aging"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Transaction History",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/api/v1/ledger/reports/transactions?page=0&size=222",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"v1",
+								"ledger",
+								"reports",
+								"transactions"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "accountId",
+									"value": "CASH-MPESA-KES",
+									"disabled": true
+								},
+								{
+									"key": "size",
+									"value": "222"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
