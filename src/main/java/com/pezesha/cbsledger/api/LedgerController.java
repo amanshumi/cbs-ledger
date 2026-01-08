@@ -67,7 +67,6 @@ public class LedgerController {
             @RequestParam(required = false) String accountType,
             @RequestParam(required = false) String currency) {
         PageRequest pageable = PageRequest.of(page, size);
-        // Note: In a full implementation, you'd add filtering logic
         return ResponseEntity.ok(ledgerService.getAccounts(pageable));
     }
 
@@ -179,11 +178,11 @@ public class LedgerController {
         return ResponseEntity.ok(balance);
     }
 
-    @GetMapping("/reports/accounts/{accountId}/transactions")
+    @GetMapping("/reports/transactions")
     @Operation(summary = "Get transaction history",
             description = "Retrieves paginated transaction history for an account")
     public ResponseEntity<Page<DTO.TransactionResponse>> getAccountTransactions(
-            @PathVariable String accountId,
+            @RequestParam(required = false) String accountId,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
             Instant fromDate,

@@ -22,7 +22,6 @@ public interface JournalEntryRepository extends
 
     Page<JournalEntry> findAll(Pageable pageable);
 
-    // Simple query without pagination for use cases where you need all results
     @Query("""
                 SELECT DISTINCT je.* FROM journal_entries je
                 JOIN entry_lines el ON je.id = el.journal_entry_id
@@ -32,24 +31,46 @@ public interface JournalEntryRepository extends
     List<JournalEntry> findByAccountId(@Param("accountId") String accountId);
 
     @Query("""
-                SELECT DISTINCT je.* FROM journal_entries je
-                JOIN entry_lines el ON je.id = el.journal_entry_id
-                WHERE el.account_id = :accountId
-                ORDER BY je.transaction_date DESC
-                LIMIT :#{#pageable.pageSize} OFFSET :#{#pageable.offset}
-            """)
+        SELECT DISTINCT je.* FROM journal_entries je
+        JOIN entry_lines el ON je.id = el.journal_entry_id
+        WHERE el.account_id = :accountId
+        ORDER BY je.transaction_date DESC
+        LIMIT :limit OFFSET :offset
+    """)
     List<JournalEntry> findTransactionsByAccountId(
             @Param("accountId") String accountId,
-            Pageable pageable);
+            @Param("limit") int limit,
+            @Param("offset") long offset);
 
     @Query("""
-                SELECT DISTINCT je.* FROM journal_entries je
-                JOIN entry_lines el ON je.id = el.journal_entry_id
-                WHERE el.account_id = :accountId
-                AND je.transaction_date BETWEEN :startDate AND :endDate
-                ORDER BY je.transaction_date DESC
-            """)
+        SELECT COUNT(DISTINCT je.id) FROM journal_entries je
+        JOIN entry_lines el ON je.id = el.journal_entry_id
+        WHERE el.account_id = :accountId
+    """)
+    long countByAccountId(@Param("accountId") String accountId);
+
+    @Query("""
+        SELECT DISTINCT je.* FROM journal_entries je
+        JOIN entry_lines el ON je.id = el.journal_entry_id
+        WHERE el.account_id = :accountId
+        AND je.transaction_date BETWEEN :startDate AND :endDate
+        ORDER BY je.transaction_date DESC
+        LIMIT :limit OFFSET :offset
+    """)
     List<JournalEntry> findByAccountIdAndDateRange(
+            @Param("accountId") String accountId,
+            @Param("startDate") Instant startDate,
+            @Param("endDate") Instant endDate,
+            @Param("limit") int limit,
+            @Param("offset") long offset);
+
+    @Query("""
+        SELECT COUNT(DISTINCT je.id) FROM journal_entries je
+        JOIN entry_lines el ON je.id = el.journal_entry_id
+        WHERE el.account_id = :accountId
+        AND je.transaction_date BETWEEN :startDate AND :endDate
+    """)
+    long countByAccountIdAndDateRange(
             @Param("accountId") String accountId,
             @Param("startDate") Instant startDate,
             @Param("endDate") Instant endDate);

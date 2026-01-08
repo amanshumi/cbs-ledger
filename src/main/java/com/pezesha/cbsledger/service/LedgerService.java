@@ -30,7 +30,6 @@ public class LedgerService {
         this.journalEntryRepository = journalEntryRepository;
     }
 
-    // Account Management Methods
     public DTO.AccountResponse getAccount(String accountId) {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new AccountNotFoundException(accountId));
@@ -41,16 +40,14 @@ public class LedgerService {
     public DTO.AccountResponse createAccount(DTO.CreateAccountRequest request) {
         validateAccountRequest(request);
 
-        // Check if account already exists
         if (accountRepository.existsById(request.id())) {
             throw new AccountAlreadyExistsException(request.id());
         }
-        // Check if parent exists if parentId is provided
+
         if (request.parentId() != null && !request.parentId().isEmpty()) {
             Account parent = accountRepository.findById(request.parentId())
                     .orElseThrow(() -> new AccountNotFoundException(request.parentId()));
 
-            // Validate parent-child account type hierarchy (simplified validation)
             if (!isValidParentChildRelation(parent.accountType(), request.type())) {
                 throw new InvalidAccountHierarchyException(parent.accountType(), request.type());
             }
@@ -60,7 +57,7 @@ public class LedgerService {
                 request.id(),
                 request.name(),
                 request.type(),
-                request.currency().toUpperCase(), // Normalize currency
+                request.currency().toUpperCase(),
                 request.parentId(),
                 BigDecimal.ZERO,
                 Instant.now(),
@@ -80,14 +77,12 @@ public class LedgerService {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new AccountNotFoundException(accountId));
 
-        // Check for child accounts
         List<Account> childAccounts = accountRepository.findByParentAccountId(accountId);
         if (!childAccounts.isEmpty()) {
             throw new AccountDeletionException(
                     "Cannot delete account with child accounts. Remove child accounts first.");
         }
 
-        // Check for transaction history
         if (accountRepository.hasTransactions(accountId)) {
             throw new AccountDeletionException(
                     "Cannot delete account with transaction history.");
@@ -96,20 +91,16 @@ public class LedgerService {
         accountRepository.deleteById(accountId);
     }
 
-    // Transaction Processing Methods
     @Transactional
     public DTO.TransactionResponse postTransaction(DTO.TransactionRequest request) {
-        // 1. Idempotency check
         Optional<JournalEntry> existing = journalEntryRepository
                 .findByIdempotencyKey(request.idempotencyKey());
         if (existing.isPresent()) {
             return mapTransactionToResponse(existing.get());
         }
 
-        // 2. Validate transaction
         validateTransaction(request);
 
-        // 3. Get all affected accounts with pessimistic locking per account
         List<String> accountIds = request.entries().stream()
                 .map(DTO.EntryRequest::accountId)
                 .distinct()
@@ -117,7 +108,6 @@ public class LedgerService {
 
         Map<String, Account> accounts = getAndLockAccounts(accountIds);
 
-        // 4. Process entries and update balances
         List<EntryLine> entryLines = new ArrayList<>();
         Instant now = Instant.now();
 
@@ -128,7 +118,6 @@ public class LedgerService {
             BigDecimal balanceChange = calculateBalanceChange(
                     account.accountType(), entry.debit(), entry.credit());
 
-            // Update account balance with optimistic locking
             Account updatedAccount = account.withBalance(
                     account.balance().add(balanceChange));
 
@@ -138,7 +127,6 @@ public class LedgerService {
                     entry.debit(), entry.credit()));
         }
 
-        // 5. Create and persist journal entry
         JournalEntry journalEntry = new JournalEntry(
                 null,
                 request.idempotencyKey(),
@@ -156,21 +144,18 @@ public class LedgerService {
     @Transactional
     public DTO.TransactionResponse reverseTransaction(Long transactionId,
                                                       String reversalIdempotencyKey) {
-        // 1. Get original transaction
         JournalEntry original = journalEntryRepository.findById(transactionId)
                 .orElseThrow(() -> new TransactionNotFoundException(transactionId));
 
-        // 2. Check if already reversed
         if ("REVERSED".equals(original.status())) {
             throw new TransactionAlreadyReversedException(transactionId);
         }
 
-        // 3. Create reversal request with opposite amounts
         List<DTO.EntryRequest> reversalEntries = original.entries().stream()
                 .map(entry -> new DTO.EntryRequest(
                         entry.accountId(),
-                        entry.credit(), // Debit becomes credit
-                        entry.debit()   // Credit becomes debit
+                        entry.credit(),
+                        entry.debit()
                 ))
                 .toList();
 
@@ -180,12 +165,7 @@ public class LedgerService {
                 reversalEntries
         );
 
-        // 4. Post reversal transaction
         DTO.TransactionResponse reversalResponse = postTransaction(reversalRequest);
-
-        // 5. Update original transaction status
-        // (In a real system, you might want to mark the original as reversed)
-
         return reversalResponse;
     }
 
@@ -195,7 +175,6 @@ public class LedgerService {
         return mapTransactionToResponse(entry);
     }
 
-    // Reporting Methods (delegated to ReportingService but kept for completeness)
     public BigDecimal getAccountBalance(String accountId) {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new AccountNotFoundException(accountId));
@@ -221,7 +200,6 @@ public class LedgerService {
             throw new ValidationException("Currency is required");
         }
 
-        // Validate currency code (simple validation)
         Set<String> validCurrencies = Set.of("KES", "UGX", "USD");
         String currency = request.currency().toUpperCase();
         if (!validCurrencies.contains(currency)) {
@@ -229,13 +207,15 @@ public class LedgerService {
         }
     }
 
+    private void validateEntryAgainstAccount(DTO.EntryRequest entry, Account account) {
+
+    }
+
     private void validateTransaction(DTO.TransactionRequest request) {
-        // Check entries not empty
         if (request.entries() == null || request.entries().isEmpty()) {
             throw new ValidationException("Transaction must have at least one entry");
         }
 
-        // Validate debit/credit amounts
         for (DTO.EntryRequest entry : request.entries()) {
             if (entry.debit().compareTo(BigDecimal.ZERO) < 0 ||
                     entry.credit().compareTo(BigDecimal.ZERO) < 0) {
@@ -248,7 +228,6 @@ public class LedgerService {
             }
         }
 
-        // Validate double-entry principle: Debits = Credits
         BigDecimal totalDebit = request.entries().stream()
                 .map(DTO.EntryRequest::debit)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -262,12 +241,10 @@ public class LedgerService {
     }
 
     private Map<String, Account> getAndLockAccounts(List<String> accountIds) {
-        // Get all accounts
         Map<String, Account> accounts = accountRepository.findAllById(accountIds)
                 .stream()
                 .collect(Collectors.toMap(Account::id, Function.identity()));
 
-        // Check all accounts exist
         if (accounts.size() != accountIds.size()) {
             Set<String> foundIds = accounts.keySet();
             Set<String> missingIds = new HashSet<>(accountIds);
@@ -275,7 +252,6 @@ public class LedgerService {
             throw new AccountNotFoundException("Accounts not found: " + missingIds);
         }
 
-        // Validate multi-currency (simplified - all entries must be in same currency)
         String firstCurrency = accounts.values().iterator().next().currency();
         boolean allSameCurrency = accounts.values().stream()
                 .allMatch(a -> a.currency().equals(firstCurrency));
@@ -288,25 +264,20 @@ public class LedgerService {
         return accounts;
     }
 
-    private void validateEntryAgainstAccount(DTO.EntryRequest entry, Account account) {
-        // Additional validation can be added here
-        // For example, ensure account is not closed, etc.
-    }
-
     private boolean isValidParentChildRelation(AccountType parentType, AccountType childType) {
-        // Simplified hierarchy validation - in real system, you'd have more complex rules
-        return parentType == childType; // Parent and child must be same type
+        return parentType == childType;
     }
 
     private BigDecimal calculateBalanceChange(AccountType type, BigDecimal debit, BigDecimal credit) {
         BigDecimal net = debit.subtract(credit);
         return switch (type) {
-            case ASSET, EXPENSE -> net; // Normal debit balance
-            case LIABILITY, EQUITY, INCOME -> net.negate(); // Normal credit balance
+            case ASSET, EXPENSE -> net;
+            case LIABILITY, EQUITY, INCOME -> net.negate();
+            default -> throw new IllegalArgumentException("Unsupported account type: " + type);
         };
     }
 
-    // Mapping Methods
+    // Mappers
     public DTO.AccountResponse mapAccountToResponse(Account account) {
         return new DTO.AccountResponse(
                 account.id(),

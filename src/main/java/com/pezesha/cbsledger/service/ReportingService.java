@@ -4,11 +4,11 @@ package com.pezesha.cbsledger.service;
 import com.pezesha.cbsledger.domain.JournalEntry;
 import com.pezesha.cbsledger.dto.DTO;
 import com.pezesha.cbsledger.repository.AccountRepository;
-import com.pezesha.cbsledger.repository.JournalEntryRepository;
+import com.pezesha.cbsledger.repository.ReportingDao;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -19,172 +19,45 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class ReportingService {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final ReportingDao reportingDao;
     private final AccountRepository accountRepository;
-    private final JournalEntryRepository journalEntryRepository;
     private final LedgerService ledgerService;
 
-    public ReportingService(JdbcTemplate jdbcTemplate,
+    public ReportingService(ReportingDao reportingDao,
                             AccountRepository accountRepository,
-                            JournalEntryRepository journalEntryRepository,
                             LedgerService ledgerService) {
-        this.jdbcTemplate = jdbcTemplate;
+        this.reportingDao = reportingDao;
         this.accountRepository = accountRepository;
-        this.journalEntryRepository = journalEntryRepository;
         this.ledgerService = ledgerService;
     }
 
-    // 1.4.1 Account Balance (current and historical)
     public BigDecimal getAccountBalance(String accountId, Instant asOf) {
-        if (asOf == null) {
-            // Current balance from account table
-            return accountRepository.findById(accountId)
-                    .map(account -> account.balance())
-                    .orElse(BigDecimal.ZERO);
-        } else {
-            // Historical balance calculated from transactions
-            return accountRepository.getBalanceAsOf(accountId, asOf);
-        }
+        return (asOf == null)
+                ? accountRepository.findById(accountId).map(a -> a.balance()).orElse(BigDecimal.ZERO)
+                : accountRepository.getBalanceAsOf(accountId, asOf);
     }
 
-    // 1.4.2 Transaction History with pagination and filters
-    public Page<DTO.TransactionResponse> getTransactionHistory(String accountId,
-                                                               Instant startDate,
-                                                               Instant endDate,
-                                                               Pageable pageable) {
-        // Use the custom repository method for pagination
-        if (startDate == null && endDate == null) {
-            List<JournalEntry> journalEntries = journalEntryRepository
-                    .findTransactionsByAccountId(accountId, pageable);
+    public Page<DTO.TransactionResponse> getTransactionHistory(String accountId, Instant start, Instant end, Pageable pageable) {
+        Long total = reportingDao.countTransactions(accountId, start, end);
+        if (total == null || total == 0) return Page.empty(pageable);
 
-            return new PageImpl<>(journalEntries.stream()
-                    .map(ledgerService::mapTransactionToResponse)
-                    .collect(Collectors.toList()), pageable, journalEntries.size());
-        } else {
-            // For date range, get all results then paginate manually (not efficient for large datasets)
-            // In production, implement a custom query with pagination
-            List<JournalEntry> entries = journalEntryRepository
-                    .findByAccountIdAndDateRange(accountId, startDate, endDate);
+        List<JournalEntry> entries = reportingDao.findTransactionsPaginated(
+                accountId, start, end, pageable.getPageSize(), pageable.getOffset());
 
-            // Manual pagination (inefficient but works for moderate-sized datasets)
-            int start = (int) pageable.getOffset();
-            int end = Math.min((start + pageable.getPageSize()), entries.size());
+        log.info("Transactions: {}", entries);
 
-            List<JournalEntry> pageContent = entries.subList(start, end);
-
-            List<DTO.TransactionResponse> content = pageContent.stream()
-                    .map(ledgerService::mapTransactionToResponse)
-                    .collect(Collectors.toList());
-
-            return new PageImpl<>(content, pageable, entries.size());
-        }
-    }
-
-    // Alternative: Efficient paginated transaction history with date range
-    public Page<DTO.TransactionResponse> getTransactionHistoryPaginated(
-            String accountId, Instant startDate, Instant endDate, Pageable pageable) {
-
-        String baseQuery = """
-            SELECT DISTINCT je.id, je.idempotency_key, je.description, 
-                   je.transaction_date, je.posted_at, je.status
-            FROM journal_entries je
-            INNER JOIN entry_lines el ON je.id = el.journal_entry_id
-            WHERE el.account_id = ?
-            """;
-
-        String countQuery = """
-            SELECT COUNT(DISTINCT je.id)
-            FROM journal_entries je
-            INNER JOIN entry_lines el ON je.id = el.journal_entry_id
-            WHERE el.account_id = ?
-            """;
-
-        List<Object> queryParams = new ArrayList<>();
-        queryParams.add(accountId);
-
-        List<Object> countParams = new ArrayList<>();
-        countParams.add(accountId);
-
-        if (startDate != null) {
-            baseQuery += " AND je.transaction_date >= ?";
-            countQuery += " AND je.transaction_date >= ?";
-            queryParams.add(startDate);
-            countParams.add(startDate);
-        }
-
-        if (endDate != null) {
-            baseQuery += " AND je.transaction_date <= ?";
-            countQuery += " AND je.transaction_date <= ?";
-            queryParams.add(endDate);
-            countParams.add(endDate);
-        }
-
-        // Count total
-        Long total = jdbcTemplate.queryForObject(
-                countQuery, Long.class, countParams.toArray());
-
-        if (total == null || total == 0) {
-            return Page.empty(pageable);
-        }
-
-        // Apply sorting
-        baseQuery += " ORDER BY je.transaction_date DESC";
-
-        // Apply pagination (H2 syntax)
-        baseQuery += " LIMIT ? OFFSET ?";
-        queryParams.add(pageable.getPageSize());
-        queryParams.add(pageable.getOffset());
-
-        // Execute query
-        List<JournalEntry> journalEntries = jdbcTemplate.query(
-                baseQuery,
-                (rs, rowNum) -> {
-                    Long id = rs.getLong("id");
-                    String idempotencyKey = rs.getString("idempotency_key");
-                    String description = rs.getString("description");
-                    Instant transactionDate = rs.getTimestamp("transaction_date").toInstant();
-                    Instant postedAt = rs.getTimestamp("posted_at").toInstant();
-                    String status = rs.getString("status");
-                    return new JournalEntry(id, idempotencyKey, description,
-                            transactionDate, postedAt, status, Collections.emptySet());
-                },
-                queryParams.toArray()
-        );
-
-        // Map to DTO
-        List<DTO.TransactionResponse> content = journalEntries.stream()
+        List<DTO.TransactionResponse> content = entries.stream()
                 .map(ledgerService::mapTransactionToResponse)
                 .collect(Collectors.toList());
 
         return new PageImpl<>(content, pageable, total);
     }
 
-    // 1.4.3 Trial Balance - unchanged
     public Map<String, Object> getTrialBalance() {
-        String sql = """
-            SELECT 
-                a.account_type,
-                CASE 
-                    WHEN a.account_type IN ('ASSET', 'EXPENSE') THEN 
-                        COALESCE(SUM(a.balance), 0)
-                    ELSE 
-                        COALESCE(SUM(a.balance), 0) * -1
-                END as balance
-            FROM accounts a
-            GROUP BY a.account_type
-            ORDER BY 
-                CASE a.account_type 
-                    WHEN 'ASSET' THEN 1
-                    WHEN 'LIABILITY' THEN 2
-                    WHEN 'EQUITY' THEN 3
-                    WHEN 'INCOME' THEN 4
-                    WHEN 'EXPENSE' THEN 5
-                END
-        """;
-
-        List<Map<String, Object>> results = jdbcTemplate.queryForList(sql);
+        List<Map<String, Object>> results = reportingDao.getTrialBalanceData();
 
         BigDecimal totalDebits = BigDecimal.ZERO;
         BigDecimal totalCredits = BigDecimal.ZERO;
@@ -195,42 +68,21 @@ public class ReportingService {
             BigDecimal balance = (BigDecimal) row.get("balance");
             balancesByType.put(type, balance);
 
-            if (balance.compareTo(BigDecimal.ZERO) >= 0) {
-                totalDebits = totalDebits.add(balance);
-            } else {
-                totalCredits = totalCredits.add(balance.abs());
-            }
+            if (balance.compareTo(BigDecimal.ZERO) >= 0) totalDebits = totalDebits.add(balance);
+            else totalCredits = totalCredits.add(balance.abs());
         }
 
-        Map<String, Object> trialBalance = new HashMap<>();
-        trialBalance.put("asOf", Instant.now());
-        trialBalance.put("accountBalances", balancesByType);
-        trialBalance.put("totalDebits", totalDebits);
-        trialBalance.put("totalCredits", totalCredits);
-        trialBalance.put("isBalanced", totalDebits.compareTo(totalCredits) == 0);
-
-        return trialBalance;
+        return Map.of(
+                "asOf", Instant.now(),
+                "accountBalances", balancesByType,
+                "totalDebits", totalDebits,
+                "totalCredits", totalCredits,
+                "isBalanced", totalDebits.compareTo(totalCredits) == 0
+        );
     }
 
-    // 1.4.4 Balance Sheet - unchanged
     public Map<String, Object> getBalanceSheet() {
-        String sql = """
-            SELECT 
-                a.account_type,
-                a.name,
-                a.balance
-            FROM accounts a
-            WHERE a.account_type IN ('ASSET', 'LIABILITY', 'EQUITY')
-            ORDER BY 
-                CASE a.account_type 
-                    WHEN 'ASSET' THEN 1
-                    WHEN 'LIABILITY' THEN 2
-                    WHEN 'EQUITY' THEN 3
-                END,
-                a.name
-        """;
-
-        List<Map<String, Object>> accounts = jdbcTemplate.queryForList(sql);
+        List<Map<String, Object>> accounts = reportingDao.getBalanceSheetData();
 
         BigDecimal totalAssets = BigDecimal.ZERO;
         BigDecimal totalLiabilities = BigDecimal.ZERO;
@@ -245,7 +97,6 @@ public class ReportingService {
             String type = (String) account.get("account_type");
             BigDecimal balance = (BigDecimal) account.get("balance");
 
-            // Adjust balance based on account type normal balance
             BigDecimal adjustedBalance = "ASSET".equals(type) ?
                     balance : balance.negate();
 
@@ -280,22 +131,8 @@ public class ReportingService {
         return balanceSheet;
     }
 
-    // 1.4.5 Loan Aging Report - unchanged
     public List<Map<String, Object>> getLoanAgingReport() {
-        String sql = """
-            SELECT 
-                a.id as account_id,
-                a.name as account_name,
-                a.balance as outstanding_amount,
-                COALESCE(l.due_date, DATEADD('DAY', 30, a.created_at)) as due_date
-            FROM accounts a
-            LEFT JOIN loans l ON a.id = l.account_id
-            WHERE a.account_type = 'ASSET' 
-            AND (LOWER(a.name) LIKE '%loan%' OR LOWER(a.name) LIKE '%receivable%')
-            AND a.balance > 0
-        """;
-
-        List<Map<String, Object>> loans = jdbcTemplate.queryForList(sql);
+        List<Map<String, Object>> loans = reportingDao.getRawLoanAgingData();
 
         Map<String, Map<String, Object>> buckets = new LinkedHashMap<>();
         String[] bucketNames = {"Current (0-29 days)", "30-59 days", "60-89 days", "90+ days"};
